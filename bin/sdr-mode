@@ -10,6 +10,7 @@ IGATE=aprs-igate.service
 SCAN=mcfrs-scanner.service
 
 show() {
+    sleep 1   # let the freshly started unit spawn its rtl_*/rx.py before we look
     for u in $IGATE $SCAN; do
         printf '%-22s %s\n' "$u" "$(systemctl is-active "$u" 2>/dev/null || true)"
     done

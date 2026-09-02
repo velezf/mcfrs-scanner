@@ -41,9 +41,10 @@ follows voice grants by retuning a single dongle.
 
 ## Status
 
-**2026-09-02 — OP25 build approved and running on `apogee-gs`.** Audio
-design decided (Icecast + USB 3.5 mm, `docs/AUDIO.md`), units and the
-switch script written, I-Gate stays the boot default. Live status and the
+**2026-09-02 — LIVE on `apogee-gs`.** OP25 built, control channel locked on
+the roof J-pole, dispatch and ops calls heard, Icecast stream holding.
+Listen at the mount named in `docs/AUDIO.md`; add the USB audio adapter
+described there for the 3.5 mm AUX path. I-Gate stays the boot default. Live status and the
 verification bar: `docs/BRINGUP.md`; phases: `docs/PLAN.md`.
 
 ## Switching jobs on the box

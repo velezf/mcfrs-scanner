@@ -50,14 +50,16 @@
       `NAC 0x8e2 WACN 0xbee00 SYSID 0x8e0 853.862500`, 1888 TSBKs in ~2 min,
       the other three CCs listed as secondaries, voice grants tracked on seven
       voice frequencies. Gain `LNA:49`, ppm 0. (Antenna decision 2 closed: it works.)
-- [ ] First clear voice call heard (talkgroup id + time)
+- [x] First clear voice calls heard — 2026-09-02 ~15:12: 7A2 Disp (4005) and
+      7A1 Ops 1 (4000), both whitelisted, receiver followed the grants.
 - [ ] Encrypted talkgroup produces silence, not garbage
-- [ ] Gain setting recorded (start from the I-Gate's measured value in
-      `../aprs-igate/systemd/aprs-igate.service`)
-- [x] Audio pipeline up — 2026-09-02: `audio.py` listening, ffmpeg feeding, Icecast
-      mount `/mcfrs.mp3` live (`status-json.xsl`), OP25 web page answers on its port.
+- [x] Gain: `LNA:49` (the unit file) locks first try; not yet swept for best BER.
+- [x] Audio pipeline up — 2026-09-02: first with `audio.py -s` the mount flapped
+      (Icecast source timeout between calls); with `op25-pcm-pace` the mount held
+      for 150 s idle-and-busy with zero unit restarts. OP25 web page answers on its port.
 - [ ] Stream plays on a phone on the LAN for 10 min (Frank: `http://apogee-gs:8100/mcfrs.mp3`)
-- [ ] `sdr-mode` round-trip ×5 leaves exactly one dongle owner
+- [~] `sdr-mode` round-trip: 2 of 5 done 2026-09-02, both clean (I-Gate reconnected
+      to APRS-IS each time; scanner + audio came up together, `NRestarts=0`).
 - [ ] Survives reboot in the chosen default mode
 - [ ] I-Gate still verified on aprs.fi after switching back
 
