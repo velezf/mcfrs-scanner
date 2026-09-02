@@ -1,0 +1,27 @@
+#!/bin/sh
+# sdr-mode — the ONLY sanctioned way to move the RTL-SDR between jobs on apogee-gs.
+# One dongle, one owner. systemd Conflicts= is the guard; this is the hand on the switch.
+#   sdr-mode            show who owns the dongle
+#   sdr-mode igate      APRS I-Gate (the default job)
+#   sdr-mode scanner    MCFRS P25 scanner
+#   sdr-mode off        neither (dongle free for rtl_test etc.)
+set -eu
+IGATE=aprs-igate.service
+SCAN=mcfrs-scanner.service
+
+show() {
+    for u in $IGATE $SCAN; do
+        printf '%-22s %s\n' "$u" "$(systemctl is-active "$u" 2>/dev/null || true)"
+    done
+    # Reliable form (rocket repo CLAUDE.md, "a check that looked like it was checking"):
+    # never pgrep -f a pattern this script's own command line contains.
+    ps -eo pid,args | grep -E 'rtl_fm|rtl_tcp|rx\.py' | grep -v grep || echo "(no dongle process)"
+}
+
+case "${1:-show}" in
+    show)    show ;;
+    igate)   sudo systemctl stop  $SCAN;  sudo systemctl start $IGATE; show ;;
+    scanner) sudo systemctl stop  $IGATE; sudo systemctl start $SCAN;  show ;;
+    off)     sudo systemctl stop  $IGATE $SCAN; show ;;
+    *) echo "usage: sdr-mode [show|igate|scanner|off]" >&2; exit 2 ;;
+esac

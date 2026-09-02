@@ -1,0 +1,4 @@
+# live, per-box config never leaves the box (same rule as aprs-igate / callsign_binding)
+config/mcfrs-trunk.tsv
+*.log
+.DS_Store

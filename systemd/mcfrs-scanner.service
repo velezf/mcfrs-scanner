@@ -1,0 +1,24 @@
+[Unit]
+Description=MCFRS P25 scanner (OP25 rx.py, single RTL-SDR)
+After=network-online.target
+Wants=network-online.target
+# The dongle has one owner. Starting this unit stops the I-Gate; the I-Gate unit
+# carries the reciprocal Conflicts= (cross-repo change, aprs-igate/systemd/).
+Conflicts=aprs-igate.service
+
+[Service]
+# Paths below are the phase-1/phase-4 authority (docs/PLAN.md). rx.py flags are
+# VERIFIED AT INSTALL TIME against `rx.py --help` on the box before this unit is
+# installed — OP25 option names have moved between branches.
+#   -2            Phase II (TDMA) voice        -T  trunk definition (config/)
+#   -V            verbose trunking log          -N  gain, e.g. 'LNA:47' (start from aprs-igate's measured value)
+#   -U            UDP audio player (phase 3 feeds this into icecast)
+#   -l http:0.0.0.0:8080   web terminal, LAN only
+WorkingDirectory=/home/rocketman/op25/op25/gr-op25_repeater/apps
+ExecStart=/usr/bin/python3 rx.py --args rtl -N 'LNA:47' -S 2400000 -o 25000 -q 0 -2 -V -U -T /etc/mcfrs-scanner/mcfrs-trunk.tsv -l http:0.0.0.0:8080
+Restart=on-failure
+RestartSec=5
+User=rocketman
+
+[Install]
+WantedBy=multi-user.target

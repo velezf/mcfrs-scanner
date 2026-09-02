@@ -1,0 +1,5 @@
+# OP25 trunk.tsv — copy to mcfrs-trunk.tsv next to the OP25 apps dir on the box.
+# Values are the ones in docs/SYSTEM.md; the only per-box field is Offset (tune correction, Hz),
+# set after phase 2 measures it. Columns are tab-separated; NAC is hex with 0x prefix.
+Sysname	Control Channel List	Offset	NAC	Modulation	TGID Tags File	Whitelist	Blacklist	Center Frequency
+MoCo MD P25	853.6875,853.8625,853.8875,853.9375	0	0x8e2	CQPSK	mcfrs.tsv	mcfrs-whitelist.tsv		

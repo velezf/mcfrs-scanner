@@ -1,0 +1,46 @@
+# CLAUDE.md — working memory for mcfrs-scanner
+
+P25 Phase II scanner for Montgomery County (MD) Fire/Rescue, running on the
+same Pi 5 (`apogee-gs`) as the rocket ground station and the APRS I-Gate.
+
+**To resume work, read `docs/PLAN.md` (phases + next gate) and
+`docs/BRINGUP.md` (open decisions, verification bar) first.**
+
+## Working agreement
+
+**Identical to the rocket repo's — cite, don't restate:**
+`../lora-rocket-telemetry/CLAUDE.md`, sections "Working agreement",
+"Cite, don't restate", and "Parallel agents". In particular:
+
+- Frank reviews and approves every commit, merge and push. Default: work on
+  a branch and STOP before committing unless told otherwise. Never push
+  without an explicit "APPROVED: push".
+- Literal values are stated ONCE at their authority and cited elsewhere.
+  Authorities in this repo: `docs/SYSTEM.md` (radio system identifiers,
+  talkgroups — the prose copy), `config/*.tsv` (the copies the decoder
+  loads), `systemd/*.service` (paths, ports, unit relationships).
+- The Pi is exclusive: only the main thread touches `apogee-gs`.
+- Commit trailer: `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`
+
+## Box facts (measured 2026-09-02 over ssh, `ssh apogee-gs`)
+
+- Raspberry Pi 5 Model B, 4 cores, 8 GB, Debian 13 (trixie) aarch64,
+  Python 3.13, ~24 GB free on the card.
+- ONE RTL-SDR (Blog V4, `0bda:2838`), packaged `rtl-sdr` 2.0.2 already
+  detects it. `gnuradio` 3.10.12 and `gr-osmosdr` 0.2.6 are available from
+  apt (not yet installed).
+- Running services: `apogee-ingest`, `apogee-panel` (rocket), `aprs-igate`
+  (owns the dongle whenever it runs). Audio hardware: HDMI only.
+- Operator account `rocketman` (in `audio`, `plugdev`, `sudo`).
+- Antenna currently on the dongle: roof Arrow J-pole (2 m / 70 cm). It is
+  not resonant at 853 MHz — see `docs/BRINGUP.md`, decision 2.
+
+## What must never happen
+
+- Never start the scanner while `aprs-igate` holds the dongle, or vice
+  versa. The systemd `Conflicts=` pair is the guard; `bin/sdr-mode` is the
+  only sanctioned switch. Do not `systemctl start` either unit by hand.
+- Never touch `apogee-ingest` / `apogee-panel` / the LoRa radio from this
+  repo. They are a different failure domain and a different repo.
+- Never attempt to decode encrypted talkgroups. OP25 is run with encrypted
+  audio muted; the tags file marks them `[ENC]` so nobody wonders.

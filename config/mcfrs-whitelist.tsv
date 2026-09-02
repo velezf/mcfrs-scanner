@@ -1,0 +1,37 @@
+# OP25 whitelist: one tgid per line. Phase-5 starting point (docs/PLAN.md):
+# clear 7A/7B/7C dispatch/ops/incident/announcement + EMRC/consult/all-hospitals.
+4000
+4005
+4010
+4015
+4020
+4025
+4030
+4035
+4040
+4045
+4050
+4065
+4070
+4075
+4080
+4085
+4090
+4095
+4100
+4105
+4120
+4125
+4130
+4135
+4140
+4145
+4150
+4155
+4160
+4170
+4175
+4385
+4390
+4395
+4440
