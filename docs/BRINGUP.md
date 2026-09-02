@@ -1,6 +1,16 @@
 # Bring-up — open decisions, then the runbook grows here
 
-## Decisions needed from Frank (2026-09-02)
+## Decisions (2026-09-02, Frank)
+
+1. **Audio: Icecast stream + a 3.5 mm AUX output.** Pipeline and the
+   USB-audio-adapter recommendation: `AUDIO.md`.
+2. **Antenna:** measure the J-pole at 853 MHz in phase 2 before buying.
+3. **I-Gate is the default job after reboot.** The scanner is never
+   enabled at boot; `sdr-mode scanner` is the deliberate switch.
+4. **Repo name `mcfrs-scanner`**; no remote yet.
+5. **OP25 install approved** ("commit and move forward on the OP25").
+
+## The original decision list (kept for the reasoning)
 
 1. **Where does the audio go?** Box is headless, basement, HDMI audio
    only. Options, recommended first:

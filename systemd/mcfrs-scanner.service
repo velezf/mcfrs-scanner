@@ -5,17 +5,19 @@ Wants=network-online.target
 # The dongle has one owner. Starting this unit stops the I-Gate; the I-Gate unit
 # carries the reciprocal Conflicts= (cross-repo change, aprs-igate/systemd/).
 Conflicts=aprs-igate.service
+# Audio pipeline follows this unit (BindsTo= on its side, Wants= here).
+Wants=mcfrs-audio.service
 
 [Service]
-# Paths below are the phase-1/phase-4 authority (docs/PLAN.md). rx.py flags are
-# VERIFIED AT INSTALL TIME against `rx.py --help` on the box before this unit is
-# installed — OP25 option names have moved between branches.
-#   -2            Phase II (TDMA) voice        -T  trunk definition (config/)
-#   -V            verbose trunking log          -N  gain, e.g. 'LNA:47' (start from aprs-igate's measured value)
-#   -U            UDP audio player (phase 3 feeds this into icecast)
-#   -l http:0.0.0.0:8080   web terminal, LAN only
+# Flags verified against rx.py on the box 2026-09-02 (boatbod gr310 @ 5b58335):
+#   -2  Phase II TDMA voice            -n  silence encrypted traffic (never decoded)
+#   -T  trunk definition               -V  verbose trunking log (journal)
+#   -w -W 127.0.0.1 -u PORT  decoded audio as PCM over UDP, loopback only -> mcfrs-audio
+#   -l http:0.0.0.0:8080  OP25 web terminal, LAN only (what is being heard, right now)
+#   -N 'LNA:49'  starting gain = the I-Gate's measured 49.6 dB (its unit file); tune in phase 2
+#   -S 2400000 -o 25000 -q 0  rtl sample rate, DC-offset tune, ppm (V4 has a TCXO)
 WorkingDirectory=/home/rocketman/op25/op25/gr-op25_repeater/apps
-ExecStart=/usr/bin/python3 rx.py --args rtl -N 'LNA:47' -S 2400000 -o 25000 -q 0 -2 -V -U -T /etc/mcfrs-scanner/mcfrs-trunk.tsv -l http:0.0.0.0:8080
+ExecStart=/usr/bin/python3 rx.py --args rtl -N 'LNA:49' -S 2400000 -o 25000 -q 0 -2 -n -V -w -W 127.0.0.1 -u 23456 -T /etc/mcfrs-scanner/mcfrs-trunk.tsv -l http:0.0.0.0:8080
 Restart=on-failure
 RestartSec=5
 User=rocketman

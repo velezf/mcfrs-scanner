@@ -41,7 +41,16 @@ follows voice grants by retuning a single dongle.
 
 ## Status
 
-**2026-09-02 — scaffolded, nothing installed on the box yet.** Research
-done, plan written, decoder chosen, talkgroup data captured. Next gate:
-Frank approves the OP25 build on `apogee-gs` (`docs/PLAN.md`, phase 1).
-Open decisions in `docs/BRINGUP.md`.
+**2026-09-02 — OP25 build approved and running on `apogee-gs`.** Audio
+design decided (Icecast + USB 3.5 mm, `docs/AUDIO.md`), units and the
+switch script written, I-Gate stays the boot default. Live status and the
+verification bar: `docs/BRINGUP.md`; phases: `docs/PLAN.md`.
+
+## Switching jobs on the box
+
+```
+sdr-mode            # who owns the dongle right now
+sdr-mode scanner    # stop the I-Gate, start the scanner (+ audio)
+sdr-mode igate      # back to the default job
+```
+`bin/sdr-mode`, installed to `/usr/local/bin` by `bin/install-on-box.sh`.

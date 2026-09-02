@@ -8,7 +8,7 @@ Research, decoder choice (`adr/0001-decoder-op25.md`), system facts
 (`SYSTEM.md`), talkgroup data (`../config/`), unit files, mode switch.
 Nothing on the box.
 
-## Phase 1 — OP25 on the box            ← NEXT GATE: "APPROVED: install"
+## Phase 1 — OP25 on the box            (APPROVED 2026-09-02; build running via `bin/op25-build.sh`)
 
 1. `ssh apogee-gs`; `sudo apt install gnuradio gr-osmosdr` (packaged,
    3.10.12 / 0.2.6 — measured available).
@@ -32,20 +32,19 @@ Nothing in this phase touches `aprs-igate`, which keeps the dongle.
    `BRINGUP.md`. If lock fails, the antenna decision (BRINGUP #2) comes
    first, before any software rabbit hole.
 
-## Phase 3 — audio delivery (decision BRINGUP #1)
+## Phase 3 — audio delivery (DECIDED: Icecast + 3.5 mm via USB adapter)
 
-Implement whichever Frank picks; default recommendation is an Icecast
-stream on the box (OP25 UDP audio → ffmpeg → icecast2) so any phone or
-laptop on the LAN can listen and OP25's own web page shows what is
-being heard. Verify: stream plays on a phone for 10 minutes without
-underruns.
+Design and parts: `AUDIO.md`. Pieces written: `bin/mcfrs-audio`,
+`systemd/mcfrs-audio.service`, `config/audio.env.example`. Verify: stream
+plays on a phone for 10 minutes without underruns; once the USB adapter
+arrives, the AUX path plays the same audio.
 
 ## Phase 4 — service + mode switch
 
-Install `systemd/mcfrs-scanner.service`, add the reciprocal
-`Conflicts=mcfrs-scanner.service` to `aprs-igate.service` (a commit in
-the `aprs-igate` repo — cross-repo, called out at the gate), install
-`bin/sdr-mode`. Verify: switching both ways five times leaves exactly one
+`bin/install-on-box.sh` installs both units, `bin/sdr-mode` and
+`bin/mcfrs-audio` to `/usr/local/bin`, config to `/etc/mcfrs-scanner`,
+and sets up Icecast. The reciprocal `Conflicts=mcfrs-scanner.service` in
+`aprs-igate.service` is a commit in the `aprs-igate` repo (cross-repo). Verify: switching both ways five times leaves exactly one
 `rtl_*`/`rx.py` process; a reboot comes up in the mode last selected.
 
 ## Phase 5 — tune what we hear

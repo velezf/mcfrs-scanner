@@ -1,0 +1,18 @@
+[Unit]
+Description=MCFRS scanner audio (OP25 UDP -> ffmpeg -> Icecast + optional USB 3.5mm)
+# Lives and dies with the scanner; never runs on its own. Design: docs/AUDIO.md.
+BindsTo=mcfrs-scanner.service
+After=mcfrs-scanner.service icecast2.service
+Wants=icecast2.service
+
+[Service]
+EnvironmentFile=/etc/mcfrs-scanner/audio.env
+ExecStart=/usr/local/bin/mcfrs-audio
+Restart=on-failure
+RestartSec=5
+User=rocketman
+# audio group for the USB adapter (rocketman is already in it)
+SupplementaryGroups=audio
+
+[Install]
+WantedBy=mcfrs-scanner.service

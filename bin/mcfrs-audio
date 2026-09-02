@@ -1,0 +1,22 @@
+#!/bin/sh
+# mcfrs-audio — OP25 voice -> Icecast (+ optional ALSA/USB 3.5 mm). Design: docs/AUDIO.md.
+# Run by systemd/mcfrs-audio.service with /etc/mcfrs-scanner/audio.env in the environment.
+set -eu
+: "${ICECAST_PW:?set in audio.env}"
+: "${ICECAST_PORT:=8000}"
+: "${ICECAST_MOUNT:=mcfrs.mp3}"
+: "${OP25_AUDIO_PORT:=23456}"
+: "${ALSA_DEV:=}"
+: "${OP25_APPS:=/home/rocketman/op25/op25/gr-op25_repeater/apps}"
+
+# 8000 Hz s16le mono is OP25's fixed PCM format (apps/sockaudio.py PCM_RATE).
+set -- ffmpeg -hide_banner -loglevel warning -nostdin \
+    -f s16le -ar 8000 -ac 1 -i - \
+    -c:a libmp3lame -b:a 32k -ar 22050 -ac 1 -content_type audio/mpeg -f mp3 \
+    "icecast://source:${ICECAST_PW}@127.0.0.1:${ICECAST_PORT}/${ICECAST_MOUNT}"
+if [ -n "$ALSA_DEV" ]; then
+    set -- "$@" -ar 48000 -ac 2 -f alsa "$ALSA_DEV"
+fi
+
+cd "$OP25_APPS"
+exec /usr/bin/python3 audio.py -s -u "$OP25_AUDIO_PORT" | "$@"
