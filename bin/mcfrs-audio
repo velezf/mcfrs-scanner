@@ -7,7 +7,6 @@ set -eu
 : "${ICECAST_MOUNT:=mcfrs.mp3}"
 : "${OP25_AUDIO_PORT:=23456}"
 : "${ALSA_DEV:=}"
-: "${OP25_APPS:=/home/rocketman/op25/op25/gr-op25_repeater/apps}"
 
 # 8000 Hz s16le mono is OP25's fixed PCM format (apps/sockaudio.py PCM_RATE).
 set -- ffmpeg -hide_banner -loglevel warning -nostdin \
@@ -18,5 +17,6 @@ if [ -n "$ALSA_DEV" ]; then
     set -- "$@" -ar 48000 -ac 2 -f alsa "$ALSA_DEV"
 fi
 
-cd "$OP25_APPS"
-exec /usr/bin/python3 audio.py -s -u "$OP25_AUDIO_PORT" | "$@"
+# op25-pcm-pace replaces OP25's audio.py -s: same UDP input, but CONTINUOUS output
+# (silence between calls) so Icecast never hits its source timeout (docs/AUDIO.md).
+exec /usr/local/bin/op25-pcm-pace --port "$OP25_AUDIO_PORT" | "$@"

@@ -31,6 +31,11 @@ same Pi 5 (`apogee-gs`) as the rocket ground station and the APRS I-Gate.
   apt (not yet installed).
 - Running services: `apogee-ingest`, `apogee-panel` (rocket), `aprs-igate`
   (owns the dongle whenever it runs). Audio hardware: HDMI only.
+- **TCP ports already taken on the box** (measured 2026-09-02, `ss -ltnp`):
+  8080 = rocket ingest dashboard, 8000/8001 = direwolf AGW/KISS (the I-Gate),
+  8421–8423 = pisugar-server. Ours are stated once: Icecast in
+  `config/audio.env.example`, the OP25 web terminal in
+  `systemd/mcfrs-scanner.service`. Never pick 8000 or 8080.
 - Operator account `rocketman` (in `audio`, `plugdev`, `sudo`).
 - Antenna currently on the dongle: roof Arrow J-pole (2 m / 70 cm). It is
   not resonant at 853 MHz — see `docs/BRINGUP.md`, decision 2.

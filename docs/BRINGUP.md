@@ -31,15 +31,32 @@
    thing you switch to on purpose.
 4. **Repo name / origin.** Scaffolded as `mcfrs-scanner`; no remote yet.
 
+## Found during install (2026-09-02)
+
+- Icecast's default port collides with direwolf's AGW port, and OP25's usual
+  web port with the rocket dashboard. Both moved; the port map is in
+  `../CLAUDE.md`, box facts. Icecast had silently failed to start (the LSB
+  wrapper reports nothing); `install-on-box.sh` now restarts it and the bar
+  below checks the listener.
+
 ## Verification bar (write results here, dated)
 
-- [ ] OP25 builds on Debian 13 / GR 3.10.12 — record commit hash + build time
-- [ ] Control channel lock on one of the four CCs (`SYSTEM.md`); NAC `8E2`
+- [x] OP25 builds on Debian 13 / GR 3.10.12 — 2026-09-02, boatbod gr310 @ `5b58335`
+      (2026-08-23), `bin/op25-build.sh`, 12 min wall (apt → `make install`),
+      `from gnuradio import op25, op25_repeater` OK, `rx.py --help` shows `-2 -n -T -l`.
+      `blacklist-rtl.conf` installed but the `dvb_usb_rtl28xxu` module stays loaded
+      until the next reboot (rtl_fm/osmosdr detach it themselves, so not blocking).
+- [x] Control channel lock — 2026-09-02 15:10, first try, on the J-pole: OP25 status
+      `NAC 0x8e2 WACN 0xbee00 SYSID 0x8e0 853.862500`, 1888 TSBKs in ~2 min,
+      the other three CCs listed as secondaries, voice grants tracked on seven
+      voice frequencies. Gain `LNA:49`, ppm 0. (Antenna decision 2 closed: it works.)
 - [ ] First clear voice call heard (talkgroup id + time)
 - [ ] Encrypted talkgroup produces silence, not garbage
 - [ ] Gain setting recorded (start from the I-Gate's measured value in
       `../aprs-igate/systemd/aprs-igate.service`)
-- [ ] Audio delivery works from a phone on the LAN for 10 min
+- [x] Audio pipeline up — 2026-09-02: `audio.py` listening, ffmpeg feeding, Icecast
+      mount `/mcfrs.mp3` live (`status-json.xsl`), OP25 web page answers on its port.
+- [ ] Stream plays on a phone on the LAN for 10 min (Frank: `http://apogee-gs:8100/mcfrs.mp3`)
 - [ ] `sdr-mode` round-trip ×5 leaves exactly one dongle owner
 - [ ] Survives reboot in the chosen default mode
 - [ ] I-Gate still verified on aprs.fi after switching back

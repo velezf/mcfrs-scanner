@@ -7,12 +7,19 @@ the box.** Both come off one pipeline; nothing is duplicated in OP25.
 
 ```
 rx.py  -w -W 127.0.0.1 -u 23456        decoded voice, PCM over UDP (loopback only)
-   └─▶ audio.py -s -u 23456            OP25's own UDP receiver, -s = raw PCM on stdout
+   └─▶ op25-pcm-pace --port 23456      continuous 8 kHz PCM on stdout: audio when a
+         │                              call is up, digital silence otherwise
          └─▶ ffmpeg -f s16le -ar 8000 -ac 1 -i -
                 ├─▶ icecast://…/mcfrs.mp3     LAN stream (any browser, VLC, phone)
                 └─▶ ALSA (USB audio adapter)  the 3.5 mm AUX jack   [optional, see below]
 ```
 
+- **Why not OP25's own `audio.py -s`?** Tried first (2026-09-02): it only
+  writes bytes while a call is up, Icecast drops a silent source after its
+  socket timeout, ffmpeg dies of a broken pipe, the unit restarts and the
+  mount flaps. `bin/op25-pcm-pace` is ~80 lines, tested (`tests/`), and
+  emits a frame every 20 ms no matter what. It also bounds latency by
+  dropping the oldest audio if the buffer exceeds one second.
 - Format facts are OP25's, not ours: `PCM_RATE = 8000` in
   `apps/sockaudio.py`, signed 16-bit little-endian, mono unless
   `audio.py -2`. ffmpeg resamples for each output.

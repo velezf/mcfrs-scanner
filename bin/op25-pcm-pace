@@ -1,0 +1,100 @@
+#!/usr/bin/python3
+"""op25-pcm-pace — turn OP25's bursty UDP PCM into a continuous stream on stdout.
+
+OP25 (rx.py -w -W host -u port) sends decoded voice as raw s16le mono PCM
+datagrams only while a call is up; a 2-byte datagram is a control message
+(see OP25's apps/sockaudio.py). Icecast drops a source that goes quiet, so
+this emits one frame every FRAME_MS milliseconds regardless: buffered audio
+when there is any, digital silence otherwise. Latency is bounded by dropping
+the oldest audio once the buffer exceeds --max-buffer-ms.
+
+Design: docs/AUDIO.md. Tests: tests/test_pacer.py.
+"""
+import argparse
+import select
+import socket
+import sys
+import time
+
+DEFAULT_PORT = 23456   # OP25's default (rx.py -u)
+DEFAULT_RATE = 8000    # OP25's PCM_RATE in apps/sockaudio.py
+DEFAULT_FRAME_MS = 20
+BYTES_PER_SAMPLE = 2   # s16le mono
+MAX_DATAGRAM = 65536
+
+
+class Pacer:
+    """Pure core: feed() datagrams in, next_frame() fixed-size frames out."""
+
+    def __init__(self, frame_bytes, max_buffer_bytes):
+        self.frame_bytes = frame_bytes
+        self.max_buffer_bytes = max_buffer_bytes
+        self._buf = bytearray()
+        self._silence = bytes(frame_bytes)
+
+    @property
+    def buffered(self):
+        return len(self._buf)
+
+    def feed(self, datagram):
+        n = len(datagram)
+        if n == 2 or n % BYTES_PER_SAMPLE:   # control message / not whole samples
+            return
+        self._buf += datagram
+        excess = len(self._buf) - self.max_buffer_bytes
+        if excess > 0:
+            del self._buf[:excess]
+
+    def next_frame(self):
+        if not self._buf:
+            return self._silence
+        chunk = bytes(self._buf[:self.frame_bytes])
+        del self._buf[:self.frame_bytes]
+        if len(chunk) < self.frame_bytes:
+            chunk += bytes(self.frame_bytes - len(chunk))
+        return chunk
+
+
+def parse_args(argv):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT, help="UDP port OP25 sends PCM to")
+    ap.add_argument("--host", default="127.0.0.1", help="bind address (loopback only by default)")
+    ap.add_argument("--rate", type=int, default=DEFAULT_RATE, help="PCM sample rate, Hz")
+    ap.add_argument("--frame-ms", type=int, default=DEFAULT_FRAME_MS, help="output frame length, ms")
+    ap.add_argument("--max-buffer-ms", type=int, default=1000, help="latency bound before dropping old audio")
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    a = parse_args(sys.argv[1:] if argv is None else argv)
+    frame_bytes = a.rate * a.frame_ms // 1000 * BYTES_PER_SAMPLE
+    pacer = Pacer(frame_bytes, a.rate * a.max_buffer_ms // 1000 * BYTES_PER_SAMPLE)
+    period = a.frame_ms / 1000.0
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((a.host, a.port))
+    sock.setblocking(False)
+    sys.stderr.write("op25-pcm-pace: listening on %s:%d, %d Hz, %d ms frames\n" % (a.host, a.port, a.rate, a.frame_ms))
+
+    out = sys.stdout.buffer
+    next_t = time.monotonic()
+    while True:
+        while True:  # drain everything that has arrived
+            r, _, _ = select.select([sock], [], [], max(0.0, next_t - time.monotonic()))
+            if not r:
+                break
+            pacer.feed(sock.recv(MAX_DATAGRAM))
+        try:
+            out.write(pacer.next_frame())
+            out.flush()
+        except BrokenPipeError:
+            sys.stderr.write("op25-pcm-pace: downstream closed, exiting\n")
+            return 1
+        next_t += period
+        now = time.monotonic()
+        if now - next_t > 1.0:   # fell far behind (suspend, stall): resync instead of bursting
+            next_t = now
+
+
+if __name__ == "__main__":
+    sys.exit(main() or 0)

@@ -13,11 +13,11 @@ Wants=mcfrs-audio.service
 #   -2  Phase II TDMA voice            -n  silence encrypted traffic (never decoded)
 #   -T  trunk definition               -V  verbose trunking log (journal)
 #   -w -W 127.0.0.1 -u PORT  decoded audio as PCM over UDP, loopback only -> mcfrs-audio
-#   -l http:0.0.0.0:8080  OP25 web terminal, LAN only (what is being heard, right now)
+#   -l http:0.0.0.0:8090  OP25 web terminal, LAN only (what is being heard, right now)
 #   -N 'LNA:49'  starting gain = the I-Gate's measured 49.6 dB (its unit file); tune in phase 2
 #   -S 2400000 -o 25000 -q 0  rtl sample rate, DC-offset tune, ppm (V4 has a TCXO)
 WorkingDirectory=/home/rocketman/op25/op25/gr-op25_repeater/apps
-ExecStart=/usr/bin/python3 rx.py --args rtl -N 'LNA:49' -S 2400000 -o 25000 -q 0 -2 -n -V -w -W 127.0.0.1 -u 23456 -T /etc/mcfrs-scanner/mcfrs-trunk.tsv -l http:0.0.0.0:8080
+ExecStart=/usr/bin/python3 rx.py --args rtl -N 'LNA:49' -S 2400000 -o 25000 -q 0 -2 -n -V -w -W 127.0.0.1 -u 23456 -T /etc/mcfrs-scanner/mcfrs-trunk.tsv -l http:0.0.0.0:8090
 Restart=on-failure
 RestartSec=5
 User=rocketman
