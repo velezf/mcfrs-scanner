@@ -1,0 +1,319 @@
+#!/usr/bin/python3
+"""mcfrs-ui — the listening page: who is talking, on which talkgroup, right now.
+
+Polls OP25's http terminal (rx.py -l http:...) for its status feed, tracks calls
+(talkgroup + the radio IDs heard on it) and serves one page with the Icecast
+player, the current call in large type, and the recent-calls list.
+
+Radio IDs are aliased from a tab-separated file (see config/radio-ids.tsv.example);
+unknown IDs are shown raw so they can be learned from the air and added.
+
+Design: docs/UI.md. Tests: tests/test_ui.py. Stdlib only.
+"""
+import argparse
+import http.server
+import json
+import os
+import re
+import sys
+import threading
+import time
+import urllib.request
+
+HISTORY_MAX = 50
+
+
+# ---------------------------------------------------------------- labels ----
+
+def split_tag(tag, tgid=None):
+    """'MCFR 7A2 Disp' -> ('7A2', 'Disp'); 'MCFR Station 14' -> ('', 'Station 14')."""
+    words = (tag or "").split()
+    if words and words[0] == "MCFR":
+        words = words[1:]
+    if not words:
+        return ("", "TG %s" % tgid if tgid else "")
+    if re.fullmatch(r"7[A-Z]\d{1,2}", words[0]):
+        return (words[0], " ".join(words[1:]))
+    return ("", " ".join(words))
+
+
+class AliasBook:
+    """radio id -> alias. Lines: 'id<TAB>alias' or 're:<regex><TAB>template' (\\1 groups)."""
+
+    def __init__(self):
+        self.exact = {}
+        self.patterns = []
+
+    @classmethod
+    def from_lines(cls, lines):
+        book = cls()
+        for line in lines:
+            line = line.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#") or "\t" not in line:
+                continue
+            key, alias = line.split("\t", 1)
+            key, alias = key.strip(), alias.strip()
+            if key.startswith("re:"):
+                book.patterns.append((re.compile(key[3:]), alias))
+            elif key.isdigit():
+                book.exact[int(key)] = alias
+        return book
+
+    @classmethod
+    def from_file(cls, path):
+        try:
+            with open(path) as f:
+                return cls.from_lines(f)
+        except OSError:
+            return cls()
+
+    def alias(self, rid):
+        if not rid:
+            return ""
+        if rid in self.exact:
+            return self.exact[rid]
+        s = str(rid)
+        for rx, template in self.patterns:
+            m = rx.fullmatch(s)
+            if m:
+                return m.expand(template)
+        return s
+
+
+# --------------------------------------------------------------- tracker ----
+
+class Tracker:
+    """Folds OP25 status polls into 'current call' + history. Pure; time is passed in."""
+
+    def __init__(self, idle_seconds=2.0, merge_seconds=30.0):
+        self.idle_seconds = idle_seconds      # no voice this long -> the call is over (display)
+        self.merge_seconds = merge_seconds    # same talkgroup again within this -> same conversation
+        self._cur = None
+        self._hist = []
+
+    def _close(self):
+        if self._cur is not None:
+            self._hist.insert(0, self._cur)
+            del self._hist[HISTORY_MAX:]
+            self._cur = None
+
+    def observe(self, objs, now):
+        tgid, tag, src, enc, freq = 0, "", 0, 0, 0
+        for o in objs or []:
+            jt = o.get("json_type")
+            if jt == "change_freq":
+                tgid = int(o.get("tgid") or 0)
+                tag = o.get("tag") or ""
+                freq = o.get("freq") or 0
+            elif jt == "trunk_update":
+                src = int(o.get("srcaddr") or 0)
+                enc = int(o.get("encrypted") or 0)
+                if not tgid:
+                    tgid = int(o.get("grpaddr") or 0)
+        if tgid:
+            if self._cur is not None and self._cur["tgid"] != tgid:
+                self._close()
+            if self._cur is None and self._hist and self._hist[0]["tgid"] == tgid \
+                    and now - self._hist[0]["end"] <= self.merge_seconds:
+                self._cur = self._hist.pop(0)
+            if self._cur is None:
+                zone, name = split_tag(tag, tgid)
+                self._cur = {"tgid": tgid, "tag": tag, "zone": zone, "name": name, "freq": freq,
+                             "encrypted": bool(enc), "start": now, "end": now,
+                             "radio": src, "radios": []}
+            c = self._cur
+            c["end"] = now
+            c["encrypted"] = c["encrypted"] or bool(enc)
+            if src:
+                c["radio"] = src
+                if src not in c["radios"]:
+                    c["radios"].append(src)
+        elif self._cur is not None and now - self._cur["end"] > self.idle_seconds:
+            self._close()
+
+    def current(self):
+        return self._cur
+
+    def history(self):
+        return list(self._hist)
+
+    def state(self, now):
+        cur = None
+        if self._cur is not None:
+            cur = dict(self._cur)
+            cur["elapsed"] = round(now - cur["start"], 1)
+        return {"now": now, "current": cur, "history": self.history()}
+
+
+# ------------------------------------------------------------------ http ----
+
+PAGE = r"""<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCFRS scanner</title>
+<style>
+ :root{color-scheme:dark}
+ body{margin:0;background:#0f1115;color:#e6e6e6;font:16px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+ header{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#161a22;border-bottom:1px solid #262b36}
+ header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.04em;color:#9aa4b5}
+ audio{margin-left:auto;height:34px;max-width:55vw}
+ #now{padding:22px 14px 16px;min-height:150px}
+ #zone{font-size:14px;color:#9aa4b5;letter-spacing:.08em;text-transform:uppercase}
+ #name{font-size:44px;font-weight:700;line-height:1.05;margin:4px 0 8px}
+ #name.idle{color:#5c6675;font-weight:500;font-size:30px}
+ #radio{font-size:24px;color:#ffd166}
+ #radio small{font-size:14px;color:#9aa4b5;margin-left:8px}
+ #meta{font-size:13px;color:#9aa4b5;margin-top:6px}
+ #others{font-size:14px;color:#c7cdd8;margin-top:6px}
+ .enc{color:#ff6b6b}
+ table{width:100%;border-collapse:collapse;font-size:14px}
+ th,td{text-align:left;padding:7px 14px;border-top:1px solid #1f242e;vertical-align:top;white-space:nowrap}
+ td.r{white-space:normal}
+ th{color:#9aa4b5;font-weight:500;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border-top:0}
+ .z{color:#9aa4b5;margin-right:6px}
+ #off{padding:14px;color:#ff9f43;display:none}
+ footer{padding:10px 14px;font-size:12px;color:#5c6675}
+</style>
+<header><h1>MCFRS scanner</h1><audio id="a" controls preload="none"></audio></header>
+<div id="off">Scanner is not running — on the box: <code>sdr-mode scanner</code></div>
+<div id="now"><div id="zone">&nbsp;</div><div id="name" class="idle">listening…</div>
+ <div id="radio"></div><div id="others"></div><div id="meta"></div></div>
+<table><thead><tr><th>when</th><th>talkgroup</th><th>radios</th><th>len</th></tr></thead><tbody id="h"></tbody></table>
+<footer>OP25 on this box · stream on port __STREAM_PORT__ · aliases from radio-ids.tsv (unknown IDs shown raw)</footer>
+<script>
+const a=document.getElementById('a');
+a.src=location.protocol+'//'+location.hostname+':__STREAM_PORT__/__STREAM_MOUNT__';
+const $=id=>document.getElementById(id);
+const hhmm=t=>new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function tick(){
+  let s; try{ s=await (await fetch('/api/state',{cache:'no-store'})).json(); }catch(e){ return; }
+  $('off').style.display = s.scanner_up ? 'none' : 'block';
+  const c=s.current;
+  if(c){
+    $('zone').textContent=(c.zone||'')+(c.encrypted?'  ·  ENCRYPTED (muted)':'');
+    $('name').textContent=c.name; $('name').className=c.encrypted?'enc':'';
+    $('radio').innerHTML=c.radio?esc(c.radio_alias)+(c.radio_alias!=String(c.radio)?'<small>'+c.radio+'</small>':''):'';
+    const others=(c.radio_aliases||[]).filter(x=>x!==c.radio_alias);
+    $('others').textContent=others.length?'also on this call: '+others.join(', '):'';
+    $('meta').textContent='TG '+c.tgid+' · '+c.elapsed.toFixed(0)+'s · since '+hhmm(c.start);
+  }else{
+    $('zone').innerHTML='&nbsp;'; $('name').textContent=s.scanner_up?'listening…':'scanner off';
+    $('name').className='idle'; $('radio').textContent=''; $('others').textContent=''; $('meta').textContent='';
+  }
+  $('h').innerHTML=s.history.map(h=>'<tr><td>'+hhmm(h.start)+'</td><td><span class="z">'+esc(h.zone)+'</span>'+esc(h.name)+(h.encrypted?' <span class="enc">enc</span>':'')+
+     '</td><td class="r">'+esc((h.radio_aliases||[]).join(', '))+'</td><td>'+Math.max(1,Math.round(h.end-h.start))+'s</td></tr>').join('');
+}
+tick(); setInterval(tick,1000);
+</script>
+"""
+
+
+class State:
+    """Shared between the poller thread and the HTTP handler."""
+
+    def __init__(self, op25_url, alias_path, idle_seconds, merge_seconds=30.0):
+        self.op25_url = op25_url
+        self.alias_path = alias_path
+        self.tracker = Tracker(idle_seconds, merge_seconds)
+        self.lock = threading.Lock()
+        self.scanner_up = False
+        self.book = AliasBook.from_file(alias_path)
+        self._alias_mtime = self._mtime()
+
+    def _mtime(self):
+        try:
+            return os.stat(self.alias_path).st_mtime
+        except OSError:
+            return None
+
+    def _reload_aliases_if_changed(self):
+        m = self._mtime()
+        if m != self._alias_mtime:
+            self.book = AliasBook.from_file(self.alias_path)
+            self._alias_mtime = m
+
+    def poll_once(self):
+        body = json.dumps([{"command": "update", "arg1": 0, "arg2": 0}]).encode()
+        req = urllib.request.Request(self.op25_url, data=body, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=2) as r:
+                objs = json.loads(r.read().decode())
+            up = True
+        except Exception:
+            objs, up = [], False
+        with self.lock:
+            self.scanner_up = up
+            self.tracker.observe(objs, time.time())
+
+    def poll_forever(self, period):
+        while True:
+            self.poll_once()
+            time.sleep(period)
+
+    def _decorate(self, call):
+        if call is None:
+            return None
+        c = dict(call)
+        c["radio_alias"] = self.book.alias(c["radio"])
+        c["radio_aliases"] = [self.book.alias(r) for r in c["radios"]]
+        return c
+
+    def snapshot(self):
+        self._reload_aliases_if_changed()
+        with self.lock:
+            s = self.tracker.state(time.time())
+            s["scanner_up"] = self.scanner_up
+        s["current"] = self._decorate(s["current"])
+        s["history"] = [self._decorate(h) for h in s["history"]]
+        return s
+
+
+def make_handler(state, page):
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def _send(self, code, ctype, body):
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            if self.path.startswith("/api/state"):
+                self._send(200, "application/json", json.dumps(state.snapshot()).encode())
+            elif self.path == "/" or self.path.startswith("/index"):
+                self._send(200, "text/html; charset=utf-8", page.encode())
+            else:
+                self._send(404, "text/plain", b"not found")
+    return Handler
+
+
+def parse_args(argv):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--port", type=int, default=8095, help="port this page is served on")
+    ap.add_argument("--op25-url", default="http://127.0.0.1:8090/", help="OP25 http terminal (rx.py -l http:...)")
+    ap.add_argument("--aliases", default="/etc/mcfrs-scanner/radio-ids.tsv", help="radio id alias file")
+    ap.add_argument("--stream-port", type=int, default=int(os.environ.get("ICECAST_PORT", "8100")))
+    ap.add_argument("--stream-mount", default=os.environ.get("ICECAST_MOUNT", "mcfrs.mp3"))
+    ap.add_argument("--poll", type=float, default=0.5, help="OP25 poll period, s")
+    ap.add_argument("--idle", type=float, default=2.0, help="seconds without voice before a call is closed")
+    ap.add_argument("--merge", type=float, default=30.0, help="same talkgroup again within this many seconds = same conversation")
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    a = parse_args(sys.argv[1:] if argv is None else argv)
+    state = State(a.op25_url, a.aliases, a.idle, a.merge)
+    threading.Thread(target=state.poll_forever, args=(a.poll,), daemon=True).start()
+    page = PAGE.replace("__STREAM_PORT__", str(a.stream_port)).replace("__STREAM_MOUNT__", a.stream_mount)
+    srv = http.server.ThreadingHTTPServer(("0.0.0.0", a.port), make_handler(state, page))
+    sys.stderr.write("mcfrs-ui: serving on :%d, polling %s\n" % (a.port, a.op25_url))
+    srv.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,17 @@
+[Unit]
+Description=MCFRS scanner listening page (who is talking, on which talkgroup)
+After=network-online.target
+Wants=network-online.target
+# Deliberately NOT bound to the scanner: the page stays up in every mode and says
+# "scanner off" when the dongle belongs to the I-Gate.
+
+[Service]
+EnvironmentFile=/etc/mcfrs-scanner/audio.env
+# Port is the authority for the box port table (CLAUDE.md, aprs-igate README).
+ExecStart=/usr/local/bin/mcfrs-ui --port 8095 --op25-url http://127.0.0.1:8090/ --aliases /etc/mcfrs-scanner/radio-ids.tsv
+Restart=on-failure
+RestartSec=3
+User=rocketman
+
+[Install]
+WantedBy=multi-user.target

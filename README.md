@@ -47,6 +47,12 @@ Listen at the mount named in `docs/AUDIO.md`; add the USB audio adapter
 described there for the 3.5 mm AUX path. I-Gate stays the boot default. Live status and the
 verification bar: `docs/BRINGUP.md`; phases: `docs/PLAN.md`.
 
+## Listening
+
+Open `http://apogee-gs:8095/` on anything on the LAN: the player, the
+talkgroup and radio speaking now, recent calls (`docs/UI.md`). Radio IDs
+get names as you learn them (`config/radio-ids.tsv.example`).
+
 ## Switching jobs on the box
 
 ```

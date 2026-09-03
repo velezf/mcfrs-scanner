@@ -1,0 +1,17 @@
+# Radio ID aliases for the listening page (bin/mcfrs-ui). Copy to
+# /etc/mcfrs-scanner/radio-ids.tsv on the box; the page reloads it when it changes.
+#
+#   <radio id><TAB><alias>            exact
+#   re:<regex><TAB><template>         pattern, \1 \2 = groups (Python re syntax)
+#
+# There is no public alias list for this system any more (RadioReference removed
+# theirs by policy, 2026 check), so this file is LEARNED FROM THE AIR: the page shows
+# unknown IDs raw; when a unit identifies itself by voice ("Engine 714 driver"),
+# write the ID down here. MCFRS radios live in the 2500xxx-2502xxx range
+# (docs/SYSTEM.md). Examples below are placeholders, not real assignments.
+# Public and confirmed on air 2026-09-03: the ECC dispatch consoles.
+66	Dispatch (ECC)
+67	Dispatch (ECC)
+#2501234	A714 Driver
+#2501235	E714 Officer
+#re:^25019(\d\d)$	Battalion Chief \1

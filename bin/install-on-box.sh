@@ -12,11 +12,12 @@ install -d /etc/mcfrs-scanner
 install -m 0644 config/mcfrs.tsv config/mcfrs-whitelist.tsv /etc/mcfrs-scanner/
 [ -f /etc/mcfrs-scanner/mcfrs-trunk.tsv ] || install -m 0644 config/mcfrs-trunk.tsv.example /etc/mcfrs-scanner/mcfrs-trunk.tsv
 [ -f /etc/mcfrs-scanner/audio.env ]      || install -m 0640 -o root -g rocketman config/audio.env.example /etc/mcfrs-scanner/audio.env
+[ -f /etc/mcfrs-scanner/radio-ids.tsv ]  || install -m 0664 -o rocketman -g rocketman config/radio-ids.tsv.example /etc/mcfrs-scanner/radio-ids.tsv
 # The trunk.tsv names its tags/whitelist files relative to the OP25 apps dir; point them at /etc.
 sed -i 's#\tmcfrs.tsv\t#\t/etc/mcfrs-scanner/mcfrs.tsv\t#; s#\tmcfrs-whitelist.tsv\t#\t/etc/mcfrs-scanner/mcfrs-whitelist.tsv\t#' /etc/mcfrs-scanner/mcfrs-trunk.tsv
 
-install -m 0755 bin/sdr-mode bin/mcfrs-audio bin/op25-pcm-pace /usr/local/bin/
-install -m 0644 systemd/mcfrs-scanner.service systemd/mcfrs-audio.service /etc/systemd/system/
+install -m 0755 bin/sdr-mode bin/mcfrs-audio bin/op25-pcm-pace bin/mcfrs-ui /usr/local/bin/
+install -m 0644 systemd/mcfrs-scanner.service systemd/mcfrs-audio.service systemd/mcfrs-ui.service /etc/systemd/system/
 
 # Icecast: source password from audio.env; Debian's unit needs ENABLE=true on older packages.
 PW=$(sed -n 's/^ICECAST_PW=//p' /etc/mcfrs-scanner/audio.env)
@@ -32,4 +33,7 @@ systemctl enable icecast2
 systemctl restart icecast2
 
 systemctl daemon-reload
-echo "installed. switch with: sdr-mode scanner | sdr-mode igate | sdr-mode"
+# The listening page runs in every mode (it reports 'scanner off' itself).
+systemctl enable --now mcfrs-ui
+systemctl restart mcfrs-ui
+echo "installed. switch with: sdr-mode scanner | sdr-mode igate | sdr-mode   page: http://$(hostname):8095/"
