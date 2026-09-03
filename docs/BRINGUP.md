@@ -57,7 +57,7 @@
 - [x] Audio pipeline up — 2026-09-02: first with `audio.py -s` the mount flapped
       (Icecast source timeout between calls); with `op25-pcm-pace` the mount held
       for 150 s idle-and-busy with zero unit restarts. OP25 web page answers on its port.
-- [ ] Stream plays on a phone on the LAN for 10 min (Frank: `http://apogee-gs:8100/mcfrs.mp3`)
+- [x] Stream plays on a phone on the LAN — 2026-09-03, Frank: "working great".
 - [~] `sdr-mode` round-trip: 2 of 5 done 2026-09-02, both clean (I-Gate reconnected
       to APRS-IS each time; scanner + audio came up together, `NRestarts=0`).
 - [ ] Survives reboot in the chosen default mode
