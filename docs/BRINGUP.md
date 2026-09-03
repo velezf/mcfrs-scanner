@@ -52,7 +52,8 @@
       voice frequencies. Gain `LNA:49`, ppm 0. (Antenna decision 2 closed: it works.)
 - [x] First clear voice calls heard — 2026-09-02 ~15:12: 7A2 Disp (4005) and
       7A1 Ops 1 (4000), both whitelisted, receiver followed the grants.
-- [ ] Encrypted talkgroup produces silence, not garbage
+- [ ] Encrypted talkgroup produces silence, not garbage (the page flags them red;
+      confirm by ear when one shows)
 - [x] Gain: `LNA:49` (the unit file) locks first try; not yet swept for best BER.
 - [x] Audio pipeline up — 2026-09-02: first with `audio.py -s` the mount flapped
       (Icecast source timeout between calls); with `op25-pcm-pace` the mount held

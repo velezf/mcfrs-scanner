@@ -53,6 +53,13 @@ Whitelist pruning (start with dispatch + ops + incidents; add stations by
 taste), talkgroup priority, encrypted-call muting confirmed (a 7D call
 must produce silence, logged not heard).
 
+## Phase 6 — the listening page (DONE 2026-09-03)
+
+`bin/mcfrs-ui` + `systemd/mcfrs-ui.service`, always on: current talkgroup
+(fleetmap names), the radio keying up now, everyone heard on the call,
+recent conversations, the player. `UI.md`. Radio-ID aliases are learned
+from the air into `/etc/mcfrs-scanner/radio-ids.tsv`.
+
 ## Later, only with a trigger
 
 - Second dongle + 800 MHz antenna → no mode switching, all three jobs
@@ -60,5 +67,7 @@ must produce silence, logged not heard).
   wants both during a launch weekend.
 - Call recording / browsing (trunk-recorder + rdio-scanner). Trigger:
   "what did I miss last night" comes up more than twice.
+- A start/stop button on the listening page (needs a privileged hook for
+  `sdr-mode`). Trigger: Frank wants to switch from the phone.
 - Rocket-box integration (an LED or OLED line for "scanner mode").
   Trigger: someone starts the scanner and forgets the I-Gate is down.

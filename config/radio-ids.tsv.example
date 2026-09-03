@@ -9,9 +9,9 @@
 # unknown IDs raw; when a unit identifies itself by voice ("Engine 714 driver"),
 # write the ID down here. MCFRS radios live in the 2500xxx-2502xxx range
 # (docs/SYSTEM.md). Examples below are placeholders, not real assignments.
-# Public and confirmed on air 2026-09-03: the ECC dispatch consoles.
-66	Dispatch (ECC)
-67	Dispatch (ECC)
+# Confirmed on air 2026-09-03: small IDs (61, 67 seen) are the ECC dispatch consoles
+# (RadioReference lists 66/67 as Fire/Rescue Dispatch).
+re:^(\d{1,3})$	ECC console \1
 #2501234	A714 Driver
 #2501235	E714 Officer
 #re:^25019(\d\d)$	Battalion Chief \1
