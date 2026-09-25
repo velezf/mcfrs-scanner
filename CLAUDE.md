@@ -8,19 +8,11 @@ same Pi 5 (`apogee-gs`) as the rocket ground station and the APRS I-Gate.
 
 ## Working agreement
 
-**Identical to the rocket repo's — cite, don't restate:**
-`../lora-rocket-telemetry/CLAUDE.md`, sections "Working agreement",
-"Cite, don't restate", and "Parallel agents". In particular:
-
-- Frank reviews and approves every commit, merge and push. Default: work on
-  a branch and STOP before committing unless told otherwise. Never push
-  without an explicit "APPROVED: push".
-- Literal values are stated ONCE at their authority and cited elsewhere.
-  Authorities in this repo: `docs/SYSTEM.md` (radio system identifiers,
-  talkgroups — the prose copy), `config/*.tsv` (the copies the decoder
-  loads), `systemd/*.service` (paths, ports, unit relationships).
-- The Pi is exclusive: only the main thread touches `apogee-gs`.
-- Commit trailer: `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`
+Gates, TDD and commit format: `~/.claude/CLAUDE.md`. Cross-project conventions
+(cite, don't restate; hollow checks; the Pi is exclusive to the main thread):
+`~/code/CLAUDE.md`. Authorities for literal values in this repo: `docs/SYSTEM.md`
+(radio system identifiers, talkgroups — the prose copy), `config/*.tsv` (the
+copies the decoder loads), `systemd/*.service` (paths, ports, unit relationships).
 
 ## Box facts (measured 2026-09-02 over ssh, `ssh apogee-gs`)
 
