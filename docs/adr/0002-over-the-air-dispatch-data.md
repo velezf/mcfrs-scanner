@@ -1,11 +1,13 @@
 # ADR 0002 — Over-the-air dispatch data: survey before building
 
-Status: CLOSED 2026-11-17. No receivable dispatch data was found. The system
-advertises packet data on three continuously keyed, P25-width channels, but
-OP25 could not frame them and their format is unidentified (Evidence, second
-run). The live source is
-dispatch voice (`mcfrs-dispatch-transcribe` ADR 0001). Frank's read: unit
-laptops get CAD over cellular (FirstNet).
+Status: REOPENED 2026-11-17. Closed earlier the same day on a misreading
+(see Correction). The three continuously keyed channels are **Motorola P25
+Phase 2 TDMA data channels (DATCH)**, which the only public analysis says
+are "probably used with APX-NEXT and MDT equipment". Their payload format is
+undocumented. Next step: a DATCH capture to see whether the payload is
+encrypted and whether it carries CAD text (Correction, Next step). Dispatch
+voice (`mcfrs-dispatch-transcribe` ADR 0001) remains the main live source
+until that is known.
 
 ## Context
 
@@ -149,15 +151,146 @@ not that the system carries no data.
     library restored from a backup and verified by sha256. Patch text and
     logs are kept on the box in `~/cc-survey/`.
 
+## Correction (2026-11-17, later the same day)
+
+The second run's reading of the `0x16` messages was wrong. OP25's
+single-receiver trunking code (`apps/trunking.py`, boatbod gr310 @
+`5b58335`) labels every TSBK with opcode `0x16` as `sndcp_data_ch` without
+checking the manufacturer ID (MFID). Two different messages share that
+opcode. Evidence: a 2-minute capture with the raw TSBK added to that log line
+(a temporary Python-only patch, reverted by `git checkout`; the OP25 tree
+shows no changes afterwards). Log: `~/cc-survey/cc-raw.log` on the box.
+
+| MFID (raw byte 2) | Message | Channels referenced |
+|---|---|---|
+| `0x90` Motorola | **Motorola TDMA data channel announcement**, the Motorola opcode 22 in SDRTrunk's table ([`Opcode.java`](https://github.com/DSheirer/sdrtrunk/blob/master/src/main/java/io/github/dsheirer/module/decode/p25/phase1/message/tsbk/Opcode.java), `MOTOROLA_OSP_TDMA_DATA_CHANNEL`; parser [`MotorolaExplicitTDMADataChannelAnnouncement.java`](https://github.com/DSheirer/sdrtrunk/blob/master/src/main/java/io/github/dsheirer/module/decode/p25/phase1/message/tsbk/motorola/osp/MotorolaExplicitTDMADataChannelAnnouncement.java)) | `0x125` 852.8375, `0x185` 853.4375, `0x1a1` 853.6125. Raw example: `1690c23f0185ffff00000000` |
+| `0x00` standard | **SNDCP data channel announcement, explicit** (TIA standard opcode 22, `OSP_SNDCP_DATA_CHANNEL_ANNOUNCEMENT_EXPLICIT` in the same table) | `0x131` 852.9125, `0x1cd` 853.8875, `0x1d5` 853.9375. Raw example: `160000c00131ffff00010000` |
+
+Further evidence:
+
+- **The band plan says these are 12.5 kHz channels.** The data channels'
+  channel IDs use identifier 0, an FDMA `iden_up` (`0x3d`) entry: base
+  851.00625 MHz, 6.25 kHz steps, `bw 0x64` (100 × 125 Hz = 12.5 kHz).
+- **SDRTrunk identifies the Motorola channels.** Issue
+  [#2089](https://github.com/DSheirer/sdrtrunk/issues/2089) and PR
+  [#2090](https://github.com/DSheirer/sdrtrunk/pull/2090) (merged
+  2024-11-12, "Motorola P25P2 TDMA data channel support") add the
+  announcement above, the Phase 2 MAC equivalent
+  ([`MotorolaTDMADataChannel.java`](https://github.com/DSheirer/sdrtrunk/blob/master/src/main/java/io/github/dsheirer/module/decode/p25/phase2/message/mac/structure/motorola/MotorolaTDMADataChannel.java),
+  MAC opcode 139), and a DATCH timeslot type that follows the channel
+  ([`DatchTimeslot.java`](https://github.com/DSheirer/sdrtrunk/blob/master/src/main/java/io/github/dsheirer/module/decode/p25/phase2/timeslot/DatchTimeslot.java)).
+  SDRTrunk prints the payload only as hex.
+- **The SDRTrunk author's analysis** (comment in `DatchTimeslot.java`;
+  quoted, not verified by us):
+  - the channel is "probably used with APX-NEXT and MDT equipment";
+  - it "seems to use the standard P25 Phase 2 scrambling sequence";
+  - "the overall signalling doesn't appear to be encrypted because the data
+    does not appear randomized. There's a lot of repeated messaging with just
+    a few bits changing";
+  - the payload is not Reed-Solomon coded in an obvious way, and its structure
+    is unknown.
+- **This explains our measurements.** The carriers are P25-width (~10 kHz at
+  −10 dB), continuously keyed, and TDMA, so OP25's Phase I fixed-frequency
+  path (`-f`, no `-2`) could not frame them. It also rules out Motorola HPD
+  (25 kHz, four QAM subchannels:
+  [SigIDWiki](https://sigidwiki.com/wiki/Motorola_ASTRO_25_HPD_Air_Interface)).
+- **The standard SNDCP channel is ordinary P25 Phase I.** Stock OP25 on
+  852.9125 (`cqpsk`, 60 s) framed hundreds of frames with NAC `0x8e2`:
+  terminators with link control (RFSS status; a Motorola group regroup). No
+  data PDUs in that minute. 853.8875 and 853.9375 are this site's secondary
+  control channels.
+
+### Documentation search: does the MDC use these channels? (2026-11-17)
+
+Frank's hypothesis: PremierOne Mobile on the MDC listens to the LMR data
+channels as a fallback when FirstNet is unavailable.
+
+- **The MDC software is PremierOne Mobile.** Frank confirmed it on
+  2026-11-17. A 2017 MCFRS general order announced PremierOne CAD, with
+  PremierOne Mobile on the MDCs and in-station remote CADs. The PSCC operates
+  CAD and the MDCs ([PSCC page](https://www.montgomerycountymd.gov/frs-ql/pscc/),
+  from web search; returned 404 when checked on 2026-11-17).
+- **Supporting it:** Motorola's
+  [ASTRO 25 Mission Critical Data brochure](https://aem-cloud-prod-cdn.motorolasolutions.com/content/dam/msi/docs/astro-25/astro-25-mission-critical-data-brochure.pdf)
+  (undated):
+  - "Vehicles are equipped with computers … This information exchange is
+    often happening over commercial carrier networks … In times of
+    disaster … they can get overloaded or even fail." It pitches ASTRO 25
+    data as the resilient alternative.
+  - It offers to "Dedicate channels to data-only to preserve data capacity"
+    (ASTRO 25 Enhanced Data), which matches our three continuously keyed
+    channels.
+- **Against it, or undocumented:**
+  - The same brochure sizes LMR data for "short data messages such as
+    location, text, presence, identity and status", with "large file
+    transfers … best served by broadband". The headline use of Enhanced
+    Data is "Support more GPS users at a higher cadence".
+  - No public document found says PremierOne Mobile uses LMR data, as a
+    fallback or otherwise. Its
+    [data sheet](https://aem-cloud-prod-cdn.motorolasolutions.com/content/dam/msi/docs/products/smart-public-safety-solutions/integrated-command-control/premierone-mobile/PremierOne-Mobile-Data-Sheet.pdf)
+    mentions only "connected or disconnected mode", and only for its records
+    reporting client. An
+    [ASTRO 25 data solutions brief](https://www.airwavecommunication.com/downloads/motorola/solutions_brief/astro_25_data_solutions.pdf)
+    says PremierOne Mobile can start database queries alongside
+    data-enabled radios. That is queries, not CAD dispatch.
+  - Station alerting is not on these channels. The brochure lists MACH Alert
+    station alerting ("alert firefighters in the station to incident
+    details") as an ASTRO 25 data application, but MCFRS uses PURVIS, an
+    IP-based system installed from 2016
+    ([MCFRS blog, 2016-06-24](https://mcfrs.blogspot.com/2016/06/installation-begins-on-new-fire-station.html);
+    [county CRC agenda, 2023-10-12](https://montgomerycountymd.gov/PRO/Resources/Files/CRC/crcAgenda-10-12-23_0942.pdf),
+    from web search; returned 404 when checked on 2026-11-17).
+    A RadioReference forum post reports the radio-based MOSCAD alerting
+    decommissioned.
+- **Assessment:** the MDC-fallback reading is plausible but undocumented.
+  Going by Motorola's own materials, location, text messaging and
+  radio-management traffic (OTAR, programming over P25) are at least as
+  likely occupants. The DATCH capture decides it.
+
+What is established, and what is not:
+
+- **Established:** the system runs three Motorola TDMA data channels
+  continuously, and MCFRS is on this system.
+- **Not established:**
+  - that MCFRS MDTs use them (the "MDT" reading is the SDRTrunk author's
+    "probably");
+  - that CAD dispatch text travels on them, rather than location, status
+    or radio-management traffic;
+  - that the payload is unencrypted. "Doesn't appear randomized" is an
+    observation about the signalling; it is not an encryption analysis of
+    any user data.
+
+### Next step (proposed, not approved)
+
+Capture DATCH payload and look at it, without decrypting anything:
+
+1. Record the three channels. Either run SDRTrunk, which already follows
+   DATCH (it is a Java desktop app, so on the Mac, fed from the box or from
+   a recording), or record raw I/Q on the box with `rtl_sdr` and analyse it
+   offline. Which path works with one dongle on the Pi is untested.
+2. Collect DATCH hex dumps across a few real dispatches (time-aligned with
+   dispatch voice on 7A2).
+3. Answer, in order:
+   - Is the payload encrypted? Random-looking user data, or an encryption
+     algorithm/key ID field, means **stop**.
+   - Does any message change in step with a voice dispatch?
+   - Do the bytes contain readable text (addresses, call types) after
+     descrambling?
+4. Only if text is in the clear: write a new ADR scoping a decoder, under
+   the legal and privacy limits above (personal display only; no
+   publishing; medical detail never shown).
+
 ## Consequences
 
-- No over-the-air data adapter. The live source is dispatch voice
-  transcribed to text (`mcfrs-dispatch-transcribe` ADR 0001).
-- The paging survey (Decision, step 2) is not run. Frank's information is
-  that CAD reaches the units over cellular, and paging would at best
-  duplicate voice dispatch.
+- The earlier conclusion ("no over-the-air data adapter") is withdrawn
+  pending the capture. Dispatch voice transcription stays the main live
+  source and is not blocked by this.
+- The paging survey (Decision, step 2) stays unrun.
+- OP25 caveat for anyone reading these logs: in `apps/trunking.py`,
+  `tsbk(0x16) sndcp_data_ch` lines mix the Motorola and standard messages.
+  Check the MFID before trusting them. (A possible upstream report to
+  boatbod/op25.)
 
 ## Trigger to revisit
 
-The county publishes a data interface, or a public P25 decoder gains support
-for this system's data channels.
+The DATCH capture is done, or the county publishes a data interface.
