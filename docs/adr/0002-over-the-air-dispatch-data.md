@@ -1,13 +1,14 @@
 # ADR 0002 — Over-the-air dispatch data: survey before building
 
-Status: REOPENED 2026-11-17. Closed earlier the same day on a misreading
-(see Correction). The three continuously keyed channels are **Motorola P25
-Phase 2 TDMA data channels (DATCH)**, which the only public analysis says
-are "probably used with APX-NEXT and MDT equipment". Their payload format is
-undocumented. Next step: a DATCH capture to see whether the payload is
-encrypted and whether it carries CAD text (Correction, Next step). Dispatch
-voice (`mcfrs-dispatch-transcribe` ADR 0001) remains the main live source
-until that is known.
+Status: CLOSED 2026-11-17, after the DATCH capture. **No CAD text was
+found on the air.** The three continuously keyed channels are Motorola P25
+Phase 2 TDMA data channels (DATCH). Their traffic does not change around
+dispatches, and their bytes show no readable text above chance. The standard
+P25 data channel carries mostly LRRP location reports. Details are in the
+Correction (identification) and "DATCH capture results" (outcome) sections.
+The live source is dispatch voice (`mcfrs-dispatch-transcribe` ADR 0001).
+(Closed once earlier the same day on a misreading, then reopened; see
+Correction.)
 
 ## Context
 
@@ -260,26 +261,67 @@ What is established, and what is not:
     observation about the signalling; it is not an encryption analysis of
     any user data.
 
-### Next step: DATCH capture (planned, not yet approved)
+## DATCH capture results (2026-11-17)
 
-Runbook: `../DATCH-CAPTURE.md`. In short:
-1. Record raw I/Q of the three DATCH channels and the control channel on the
-   box (`rtl_sdr`, 1.8 Msps, two 5-minute takes).
-2. Decode the recording in SDRTrunk on the Mac (release v0.6.1 or later
-   has DATCH support).
-3. Analyse with stop rules, in order: any traffic? encrypted (stop)? does it
-   track dispatch grants? readable text?
-4. Only clear CAD text leads to a new ADR, for a decoder for personal
-   display only.
+Method: `../DATCH-CAPTURE.md` (deviations are in its run log). Two 5-minute
+I/Q takes were recorded on the box at 19:36–19:46 UTC (14:36–14:46 local) on
+the roof J-pole. Take 1 was decoded in SDRTrunk v1.0.0 on the Mac and
+analysed. Take 2 was not, because a stop rule was reached on take 1.
 
-Raw data stays outside the repos and is deleted after the write-up.
+- **Recording validity (a check that could fail).** Level over the noise
+  floor in take 1: DATCH channels +26 to +32 dB, control channel 853.8625
+  +32.6 dB, empty reference frequency 853.000 +0.5 dB. SDRTrunk decoded the
+  control channel from the file and followed voice, SNDCP and DATCH
+  channels on its own.
+- **(a) Traffic.** 24,815 DATCH timeslot messages in 297 s, spread evenly
+  over the three channels and both timeslots (~14 messages/s per timeslot).
+- **(b) Encrypted? Inconclusive, so no stop at (b).**
+  - Unique messages: 7.77 bits/byte (a same-size uniform random sample:
+    8.00; readable English text: about 4.5).
+  - 36% of messages are exact repeats; the five most common repeat 260–292
+    times each.
+  - Median bit difference between consecutive messages: 45–46%. No byte
+    position has entropy below 4 bits.
+  - Too structured to be uniform ciphertext and too random to be text:
+    consistent with compact binary data plus periodic repeated messages.
+- **(c) Tracks dispatch? No. Stop rule (c).** The control channel showed
+  grants to the dispatch talkgroup (7A2, TG 4005) in 39 distinct seconds.
+  New unique DATCH messages per second: 53.5 baseline, 50.3 in the 30 s
+  after a dispatch grant. A CAD feed to MDCs should burst when dispatches go
+  out.
+- **(d) Readable text? At chance.** 4.6% of messages contain a printable
+  ASCII run of 6+ characters, against 5.2% for the random sample. Street
+  suffix hits: 5 observed against about 4 random. (The analysis script's
+  first baseline note, "<1%", was wrong; the correct random rate is about
+  5–6%. These numbers use the empirical random comparison.)
+- **(e) Standard P25 packet data on 853.9375.** The control channel issued
+  `SNDCP_DCH_GRANT … CHAN:0-469` (853.9375) to individual radio IDs.
+  SDRTrunk decoded 34 IP packets there: 21 LRRP (Motorola location), 10
+  other UDP, 3 incomplete. Every packet whose header decoded carried
+  `SAP:UNENCRYPTED_USER_DATA`. This matches Motorola's description of LMR
+  data (location, status).
+
+**Conclusion.** Neither data path showed CAD text. DATCH traffic is
+steady machine-to-machine data that does not respond to dispatches. The
+standard data channel is mostly location reports. This supports Frank's
+read that CAD reaches the MDCs over cellular (FirstNet).
+
+**Limits.**
+- One 5-minute take, 39 dispatch moments.
+- The DATCH format is undocumented, so "no text" is about the bytes as
+  SDRTrunk descrambles them. Compressed or differently framed text would
+  not show up.
+- The repeats suggest the descrambling is at least consistent.
+- Nothing was decrypted, and no payload content is recorded here.
 
 ## Consequences
 
-- The earlier conclusion ("no over-the-air data adapter") is withdrawn
-  pending the capture. Dispatch voice transcription stays the main live
-  source and is not blocked by this.
+- No over-the-air data adapter. The live source is dispatch voice
+  transcribed to text (`mcfrs-dispatch-transcribe` ADR 0001).
 - The paging survey (Decision, step 2) stays unrun.
+- Raw recordings, converted WAVs and SDRTrunk event logs were deleted on
+  2026-11-17 at Frank's instruction (runbook handling rules), from the box
+  and the Mac. Only the aggregates above remain.
 - OP25 caveat for anyone reading these logs: in `apps/trunking.py`,
   `tsbk(0x16) sndcp_data_ch` lines mix the Motorola and standard messages.
   Check the MFID before trusting them. (A possible upstream report to
@@ -287,4 +329,7 @@ Raw data stays outside the repos and is deleted after the write-up.
 
 ## Trigger to revisit
 
-The DATCH capture is done, or the county publishes a data interface.
+- The county publishes a data interface.
+- The DATCH payload format gets documented, or a public decoder parses it.
+- A future question needs the LRRP location data. That would need its own
+  ADR, under the privacy limits above.

@@ -1,7 +1,9 @@
 # DATCH capture — runbook
 
-Status: PLANNED 2026-11-17, not yet approved to run. Why we are doing it:
-`adr/0002-over-the-air-dispatch-data.md`, Correction.
+Status: RAN 2026-11-17 (stream COMPLETED: no CAD text found). Results:
+`adr/0002-over-the-air-dispatch-data.md`, "DATCH capture results". Why we
+did it: same ADR, Correction. Deviations and lessons: "Run log" at the end
+of this file.
 
 **Goal.** Find out whether the three Motorola TDMA data channels (DATCH)
 carry CAD dispatch text in the clear. This is not a control-channel
@@ -114,3 +116,37 @@ ABANDONED) in `PLAN.md`.
 - The roof J-pole is not resonant at 853 MHz. The data channels measured
   +17 to +22 dB over the floor on 2026-11-17, which should be enough, but
   the step 3.4 check is what proves the recording is good.
+
+## Run log (2026-11-17)
+
+Deviations from the plan above, and what to do next time:
+
+- **Gain: automatic, not 40 dB.** At `-g 40` the test take used about 1 bit
+  of the 8-bit range (sample standard deviation 1.3). At the maximum manual
+  gain of 49.6 dB it was 3.3. Tuner AGC (`-g 0`) gave 8.9, with peaks at
+  78/174 and no clipping. Both takes used `-g 0`.
+- **SDRTrunk v1.0.0, not v0.6.1.** v1.0.0 publishes SHA-256 checksums
+  (verified against `SHA256SUMS` and the GitHub API digest); v0.6.1 does
+  not. Both have DATCH support. The release zip is a launcher script plus a
+  bundled Java runtime (`bin/sdr-trunk`), not a `.app`.
+- **The Add Recording Tuner frequency field is in Hz.** Type `853500000`. A
+  mistyped value fell back to 853.000 MHz. Editing the tuner's frequency
+  digits afterwards did not apply (the log said "Can't set frequency"), so
+  remove and re-add the tuner instead. Confirm with the `CF:` line in
+  `~/SDRTrunk/logs/sdrtrunk_app.log`.
+- **JMBE (voice codec) is not needed.** Answer No to its setup prompt.
+- **DATCH followed automatically.** With Max Traffic Channels 10 and Ignore
+  Data Calls off, SDRTrunk opened the three DATCH channels and the SNDCP
+  channel without manual setup (step 3.5 was not needed).
+- **The recording tuner loops.** Stop the channel after one pass, or cut the
+  analysis at 300 s from the first message (done).
+- **Remote over UniFi Teleport, the copy is slow.** Copying the takes to the
+  Mac ran at about 2.6 MB/s. When remote, process on the box where possible
+  (papercuts 2026-11-17).
+- **Analysis.** Done with throwaway scripts, which printed aggregates only.
+  Conversion: `s16 = round((u8 − 127.5) × 256)`, tested on a known 6-byte
+  input. Spectrum: 4096-point FFT averaged over 3,000 blocks. Statistics:
+  per-channel and per-timeslot byte entropy, duplicate rate, consecutive
+  Hamming distance, per-position entropy, new-unique-messages per second
+  around grants to the dispatch talkgroup, and printable runs against a
+  same-size `os.urandom` sample.

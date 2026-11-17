@@ -65,11 +65,11 @@ from the air into `/etc/mcfrs-scanner/radio-ids.tsv`.
 Feeds `mcfrs-incidents` now that Everbridge is unavailable (its ADR 0001).
 Each step ends at a gate Frank clears.
 
-1. **Over-the-air data survey** (REOPENED 2026-11-17): three Motorola P25
-   Phase 2 TDMA data channels (DATCH, likely MDT traffic) identified; payload
-   format undocumented. Next: DATCH capture to check encryption and content,
-   runbook `DATCH-CAPTURE.md` (gates: I-Gate down ~15 min, SDRTrunk on the Mac).
-   `adr/0002-over-the-air-dispatch-data.md`, Correction.
+1. **Over-the-air data survey** (COMPLETED 2026-11-17: no CAD text on the
+   air). Three Motorola DATCH channels plus a standard SNDCP channel were
+   captured and analysed. DATCH does not track dispatches and shows no text
+   above chance; SNDCP is mostly LRRP location. ADR 0002, "DATCH capture
+   results"; runbook and run log `DATCH-CAPTURE.md`.
 2. **Per-call audio tap** (this repo's only part of transcription): save
    each whitelisted dispatch call as an audio file plus metadata
    (talkgroup, time) for `mcfrs-dispatch-transcribe` to pick up.
