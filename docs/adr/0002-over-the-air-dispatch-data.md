@@ -1,7 +1,11 @@
 # ADR 0002 — Over-the-air dispatch data: survey before building
 
-Status: OPEN 2026-11-17. The first survey heard nothing (antenna, see
-Evidence); it must be rerun before anything is decided.
+Status: CLOSED 2026-11-17. No receivable dispatch data was found. The system
+advertises packet data on three continuously keyed, P25-width channels, but
+OP25 could not frame them and their format is unidentified (Evidence, second
+run). The live source is
+dispatch voice (`mcfrs-dispatch-transcribe` ADR 0001). Frank's read: unit
+laptops get CAD over cellular (FirstNet).
 
 ## Context
 
@@ -98,13 +102,62 @@ not that the system carries no data.
   `--vocoder` and verbosity is `-v`. The comment needs a fix; the flags
   themselves are right.
 
+- **2026-11-17, second run, J-pole back on: control channel locked.**
+  20,522 TSBKs in 14 m 46 s (13:36–13:51), NAC `0x8e2`, zero unhandled
+  opcodes, no `0x38` service broadcast, no `0x14` data-channel grants.
+  - `0x16 sndcp_data_ch` was the most frequent TSBK (5,558). Channel IDs
+    decode with the broadcast band plan (`0x3d` iden 0: base 851.00625 MHz,
+    6.25 kHz steps). Three were announced every cycle (~1,150 each) and
+    never appeared in any of the 1,127 voice grants: `0x125` 852.8375,
+    `0x185` 853.4375, `0x1a1` 853.6125 MHz. Others appeared intermittently,
+    some of them this site's secondary control channels (853.8875,
+    853.9375), so either data shares those channels or OP25 misparses some
+    `0x16` messages.
+  - RadioReference (`../SYSTEM.md` source) lists all three as site
+    frequencies with no flag. It marks nothing as data.
+- **Data channels are keyed continuously.** `rtl_power`, 1 s bins for 60 s:
+  852.8375 active 60/60 s at about +21.5 dB over the floor; 853.4375 and
+  853.6125 active 60/60 s at about +17 dB. Voice channels were bursty
+  (853.3625 16/60 s; 853.1125 0/60 s).
+- **They are not P25 that OP25 can frame.** OP25 `rx.py` parked on each
+  data channel (`-f`, no trunking, `-v 10`), with a temporary patch that
+  logged PDU header fields (format, SAP, block count; no payload):
+  - 852.8375 `cqpsk` 180 s, `fsk4` 60 s; 853.4375 and 853.6125 `cqpsk` 60 s
+    each: **zero PDUs**, zero frames, 0–2 NID errors per run, steady
+    `check_timeout`.
+  - Positive control, same command on control channel 853.8625 `cqpsk`
+    for 30 s: P25 frames decoded at once (NAC `0x8e2`, TDU/LCW). The
+    fixed-frequency path works, so the failure is the signal, not the method.
+  - **Bandwidth rules out Motorola HPD.** HPD, Motorola's dedicated
+    vehicle-data channel, puts four QAM subchannels in 25 kHz
+    ([SigIDWiki](https://sigidwiki.com/wiki/Motorola_ASTRO_25_HPD_Air_Interface)).
+    `rtl_power` at 1 kHz bins, 20 s each: 852.8375 is 11 kHz wide at
+    −10 dB, 853.4375 is 9 kHz, and control channel 853.8625 is the same
+    shape (the same ~±5 kHz main lobe). The data carriers are P25-sized,
+    not 25 kHz.
+  - **What they carry is unidentified.** They are P25-width carriers that
+    OP25's Phase I path cannot frame. Untested possibilities: a TDMA
+    (Phase II-style) format, which needs scrambling parameters OP25's
+    fixed-frequency mode does not take; or something else not public.
+    Nothing published links these frequencies to a format. RadioReference
+    leaves them unflagged.
+  - **Stopped here** (Frank: CAD is most likely on cellular/FirstNet). Going
+    further means identifying an unknown signal by trial. The odds that it
+    carries CAD text in the clear are low, and if it turned out to be
+    encrypted we would stop anyway.
+  - The patch was reverted afterwards: OP25 source back to `5b58335`, the
+    library restored from a backup and verified by sha256. Patch text and
+    logs are kept on the box in `~/cc-survey/`.
+
 ## Consequences
 
-- If dispatch data is on the air in the clear: a new ADR scopes a data
-  decoder feeding `mcfrs-incidents`, with the privacy limits above.
-- If not (the expected outcome): the live source becomes dispatch voice
+- No over-the-air data adapter. The live source is dispatch voice
   transcribed to text (`mcfrs-dispatch-transcribe` ADR 0001).
+- The paging survey (Decision, step 2) is not run. Frank's information is
+  that CAD reaches the units over cellular, and paging would at best
+  duplicate voice dispatch.
 
 ## Trigger to revisit
 
-The roof J-pole (or an 800 MHz antenna) is back on the dongle. Rerun step 1.
+The county publishes a data interface, or a public P25 decoder gains support
+for this system's data channels.

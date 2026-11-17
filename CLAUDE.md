@@ -30,11 +30,11 @@ copies the decoder loads), `systemd/*.service` (paths, ports, unit relationships
   `systemd/mcfrs-scanner.service`, the listening page in
   `systemd/mcfrs-ui.service`. Never pick 8000 or 8080.
 - Operator account `rocketman` (in `audio`, `plugdev`, `sudo`).
-- Antenna on the dongle (Frank, 2026-11-17): a small antenna, NOT the roof
-  Arrow J-pole. It heard nothing at 853 MHz (`docs/adr/0002-over-the-air-dispatch-data.md`,
-  Evidence). The J-pole (2 m / 70 cm, not resonant at 853 MHz) locked first try
-  on 2026-09-02 (`docs/BRINGUP.md`). Anything that needs the control channel
-  waits for the J-pole or an 800 MHz antenna.
+- Antenna on the dongle: the roof Arrow J-pole (2 m / 70 cm), back on since
+  2026-11-17 (Frank). It is not resonant at 853 MHz but locks the control
+  channel (2026-09-02 and 2026-11-17, `docs/BRINGUP.md`). A small antenna used
+  briefly on 2026-11-17 heard nothing at 853 MHz
+  (`docs/adr/0002-over-the-air-dispatch-data.md`, Evidence).
 
 ## What must never happen
 

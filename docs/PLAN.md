@@ -65,8 +65,8 @@ from the air into `/etc/mcfrs-scanner/radio-ids.tsv`.
 Feeds `mcfrs-incidents` now that Everbridge is unavailable (its ADR 0001).
 Each step ends at a gate Frank clears.
 
-1. **Over-the-air data survey**: `adr/0002-over-the-air-dispatch-data.md`.
-   Needs the J-pole or an 800 MHz antenna. 15 min, I-Gate down.
+1. **Over-the-air data survey** (DONE 2026-11-17, closed: no receivable
+   dispatch data): `adr/0002-over-the-air-dispatch-data.md`.
 2. **Per-call audio tap** (this repo's only part of transcription): save
    each whitelisted dispatch call as an audio file plus metadata
    (talkgroup, time) for `mcfrs-dispatch-transcribe` to pick up.
