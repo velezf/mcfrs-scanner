@@ -60,6 +60,20 @@ must produce silence, logged not heard).
 recent conversations, the player. `UI.md`. Radio-ID aliases are learned
 from the air into `/etc/mcfrs-scanner/radio-ids.tsv`.
 
+## Phase 7 — dispatch to data (PLANNED 2026-11-17, blocked on antenna)
+
+Feeds `mcfrs-incidents` now that Everbridge is unavailable (its ADR 0001).
+Each step ends at a gate Frank clears.
+
+1. **Over-the-air data survey**: `adr/0002-over-the-air-dispatch-data.md`.
+   Needs the J-pole or an 800 MHz antenna. 15 min, I-Gate down.
+2. **Per-call audio tap** (this repo's only part of transcription): save
+   each whitelisted dispatch call as an audio file plus metadata
+   (talkgroup, time) for `mcfrs-dispatch-transcribe` to pick up.
+3. Transcription, matching and the engine bake-off live in
+   `mcfrs-dispatch-transcribe` (its ADRs 0001–0002); its `docs/RESUME.md`
+   holds that plan.
+
 ## Later, only with a trigger
 
 - Second dongle + 800 MHz antenna → no mode switching, all three jobs

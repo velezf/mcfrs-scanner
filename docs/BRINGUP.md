@@ -39,6 +39,16 @@
   wrapper reports nothing); `install-on-box.sh` now restarts it and the bar
   below checks the listener.
 
+## Found 2026-11-17
+
+- With a small antenna on the dongle (not the J-pole), OP25 never locked any
+  control channel, and an `rtl_power` sweep showed all four within 0.7 dB of
+  the noise floor. Details and the rerun procedure:
+  `adr/0002-over-the-air-dispatch-data.md`.
+- `systemd/mcfrs-scanner.service` comment mislabels `-V` as verbose
+  trunking. In this OP25 it is `--vocoder`; verbosity is `-v`. Comment fix
+  pending; the flags are correct.
+
 ## Verification bar (write results here, dated)
 
 - [x] OP25 builds on Debian 13 / GR 3.10.12 — 2026-09-02, boatbod gr310 @ `5b58335`
