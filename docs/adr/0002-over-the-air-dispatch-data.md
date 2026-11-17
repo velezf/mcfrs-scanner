@@ -260,25 +260,19 @@ What is established, and what is not:
     observation about the signalling; it is not an encryption analysis of
     any user data.
 
-### Next step (proposed, not approved)
+### Next step: DATCH capture (planned, not yet approved)
 
-Capture DATCH payload and look at it, without decrypting anything:
+Runbook: `../DATCH-CAPTURE.md`. In short:
+1. Record raw I/Q of the three DATCH channels and the control channel on the
+   box (`rtl_sdr`, 1.8 Msps, two 5-minute takes).
+2. Decode the recording in SDRTrunk on the Mac (release v0.6.1 or later
+   has DATCH support).
+3. Analyse with stop rules, in order: any traffic? encrypted (stop)? does it
+   track dispatch grants? readable text?
+4. Only clear CAD text leads to a new ADR, for a decoder for personal
+   display only.
 
-1. Record the three channels. Either run SDRTrunk, which already follows
-   DATCH (it is a Java desktop app, so on the Mac, fed from the box or from
-   a recording), or record raw I/Q on the box with `rtl_sdr` and analyse it
-   offline. Which path works with one dongle on the Pi is untested.
-2. Collect DATCH hex dumps across a few real dispatches (time-aligned with
-   dispatch voice on 7A2).
-3. Answer, in order:
-   - Is the payload encrypted? Random-looking user data, or an encryption
-     algorithm/key ID field, means **stop**.
-   - Does any message change in step with a voice dispatch?
-   - Do the bytes contain readable text (addresses, call types) after
-     descrambling?
-4. Only if text is in the clear: write a new ADR scoping a decoder, under
-   the legal and privacy limits above (personal display only; no
-   publishing; medical detail never shown).
+Raw data stays outside the repos and is deleted after the write-up.
 
 ## Consequences
 

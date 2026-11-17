@@ -67,7 +67,8 @@ Each step ends at a gate Frank clears.
 
 1. **Over-the-air data survey** (REOPENED 2026-11-17): three Motorola P25
    Phase 2 TDMA data channels (DATCH, likely MDT traffic) identified; payload
-   format undocumented. Next: DATCH capture to check encryption and content.
+   format undocumented. Next: DATCH capture to check encryption and content,
+   runbook `DATCH-CAPTURE.md` (gates: I-Gate down ~15 min, SDRTrunk on the Mac).
    `adr/0002-over-the-air-dispatch-data.md`, Correction.
 2. **Per-call audio tap** (this repo's only part of transcription): save
    each whitelisted dispatch call as an audio file plus metadata
